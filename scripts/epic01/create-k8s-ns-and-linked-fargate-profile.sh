@@ -22,6 +22,7 @@ done
 
 #######################################
 # Treating parameters
+#######################################
 missing_parameters=false
 
 K8S_CLUSTER_NAME="$(sed -e 's/[[:space:]]*$//' <<<${K8S_CLUSTER_NAME})"
