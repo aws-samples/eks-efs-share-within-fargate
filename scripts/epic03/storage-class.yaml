@@ -3,3 +3,13 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: efs-sc
 provisioner: efs.csi.aws.com
+parameters:
+  fileSystemId: ${FILE_SYSTEM_ID}
+  provisioningMode: efs-a # optional
+  directoryPerms: "700" # optional
+  gidRangeStart: "1000" # optional
+  gidRangeEnd: "2000" # optional
+  basePath: "/dynamic_provisioning" # optional
+  subPathPattern: "${.PVC.namespace}/${.PVC.name}" # optional
+  ensureUniqueDirectory: "true" # optional
+  reuseAccessPoint: "false" # optional
