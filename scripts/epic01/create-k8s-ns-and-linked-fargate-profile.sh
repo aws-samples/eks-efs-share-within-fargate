@@ -11,7 +11,7 @@ options=':c:n:h'
 while getopts $options option
 do
     case "$option" in
-        c  ) K8S_CLUSTER_NAME=${OPTARG-$K8S_CLUSTER_NAME};;
+        c  ) CLUSTER_NAME=${OPTARG-$CLUSTER_NAME};;
         n  ) nflag=true; APP_NAMESPACE=${OPTARG-$APP_NAMESPACE};;
         h  ) usage; exit;;
         \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
@@ -25,10 +25,10 @@ done
 #######################################
 missing_parameters=false
 
-K8S_CLUSTER_NAME="$(sed -e 's/[[:space:]]*$//' <<<${K8S_CLUSTER_NAME})"
-if [ -z "${K8S_CLUSTER_NAME// }" ]
+CLUSTER_NAME="$(sed -e 's/[[:space:]]*$//' <<<${CLUSTER_NAME})"
+if [ -z "${CLUSTER_NAME// }" ]
 then
-    echo "-c nor K8S_CLUSTER_NAME env variable specified. Please inform the EKS cluster name..." >&2
+    echo "-c nor CLUSTER_NAME env variable specified. Please inform the EKS cluster name..." >&2
     missing_parameters=true
 fi
 
@@ -50,5 +50,5 @@ kubectl create namespace ${APP_NAMESPACE}
 # Create a custom Fargate Profile linked to created namespace
 eksctl create fargateprofile \
                 --namespace "${APP_NAMESPACE}" \
-                --cluster "${K8S_CLUSTER_NAME}" \
+                --cluster "${CLUSTER_NAME}" \
                 --name "fp-${APP_NAMESPACE}"

@@ -175,19 +175,19 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 
 <br/>Execute the script as follows to create Fargate profile with a custom application Namespace name:
 ```sh
 ./scripts/epic01/create-k8s-ns-and-linked-fargate-profile.sh \
-    -c "$CLUSTER_NAME" -n $NAMESPACE
+    -c "$CLUSTER_NAME" -n $APP_NAMESPACE
 ```
 
 <br/>Execute the script as follows to create Fargate profile with a default provided Namespace `poc-efs-eks-fargate`.
 ```sh
 ./scripts/epic01/create-k8s-ns-and-linked-fargate-profile.sh \
-    -c "$CLUSTER_NAME" -n $NAMESPACE
+    -c "$CLUSTER_NAME" -n $APP_NAMESPACE
 ```
 
 
@@ -219,9 +219,9 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
 |File System Token|The token that is used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|`-t <FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Security Group Name|The name of the security group that is used to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|`-s <SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|Parameter over env variable.|*eks-<CLUSTER_NAME>-efs-SecurityGroup*|No.|
+|Security Group Name|The name of the security group that is used to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<SECURITY_GROUP_NAME_FOR_EFS_CLUSTER>`|`-s <SECURITY_GROUP_NAME_FOR_EFS_CLUSTER>`|Parameter over env variable.|*eks-<CLUSTER_NAME>-efs-SecurityGroup*|No.|
 |Disabled Encryption at Rest|Identifies if the [EFS](https://aws.amazon.com/efs/) is going to be created without enabled encryption.|None.|`-d`|N/A|Encryption at rest enabled.|No.|
 |Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) creation. The generated key is used in the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<KMS_CMK_KEY_ALIAS>`|`-k <KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No, and ignored if `-d` parameter is informed.|
 
@@ -292,7 +292,7 @@ The scripts supports parameters and environment variables as follows:
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
 |File System Token|The token that was used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|`-t <FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 |Disabled Encryption in Transit|Identifies if the [EFS](https://aws.amazon.com/efs/) is going to be used without enabled encryption in transit.|None.|`-d`|N/A|Encryption in transit enabled.|No.|
 
 <br/>Execute the script as follows (for encryption in transit enabled):
@@ -393,12 +393,12 @@ The scripts supports parameters and environment variables as follows:
 |---|---|---|---|---|---|---|
 |File System ID|The ID of the file system previously created.|`export FS_ID=<EFS_FILE_SYSTEM_ID>`|1st parameter when calling the script.|Parameter over env variable.|No default value.|Yes, but only if File System Token is not provided.|
 |File System Token|The token that was used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|2nd parameter when calling the script.|Parameter over env variable.|No default value.|Yes, for finding [EFS](https://aws.amazon.com/efs/) File System ID, if that was not provided.|
-|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|3rd parameter when calling the script.|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export APP_NAMESPACE=<APP_NAMESPACE>`|3rd parameter when calling the script.|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 
 <br/>Execute the script as follows:
 ```sh
 ./scripts/epic05/validate-efs-content.sh \
-    -t "EFS_FILE_SYSTEM_ID"
+    -t "$EFS_FILE_SYSTEM_ID"
 ```
 
 After deleting the PoC application components at first stage of this script, and installing the validation process components on the subsequent stages, the final result is going to be the following:
@@ -440,10 +440,10 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
 |File System Token|The token that is used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|`-t <FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Security Group Name|The name of the security group that was created to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|`-s <SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|Parameter over env variable.|*eks-<CLUSTER_NAME>-efs-SecurityGroup*|No.|
-|Application Namespace|Namespace in which the application was deployed.|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|Security Group Name|The name of the security group that was created to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<SECURITY_GROUP_NAME_FOR_EFS_CLUSTER>`|`-s <SECURITY_GROUP_NAME_FOR_EFS_CLUSTER>`|Parameter over env variable.|*eks-<CLUSTER_NAME>-efs-SecurityGroup*|No.|
+|Application Namespace|Namespace in which the application was deployed.|`export APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 |Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) used during the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<KMS_CMK_KEY_ALIAS>`|`-k <KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No.|
 
 <br/>Execute the script as follows (if encryption at rest enabled and CMK Key Alias was not informed):
