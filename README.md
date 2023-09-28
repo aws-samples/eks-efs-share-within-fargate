@@ -4,15 +4,17 @@ This pattern provides the step-by-step guidance for enabling **Amazon Elastic Fi
 
 ## Summary
 
-### Overview
+This pattern provides guidance for enabling **Amazon Elastic File System (Amazon EFS)** as a storage device for containers that are running on **Amazon Elastic Kubernetes Service (Amazon EKS)**, using **AWS Fargate** to provision your compute resources.
 
-This pattern brings step-by-step guidance, and supporting code examples, for enabling an **Amazon Elastic File System (EFS)** as a storage device for containers running on **Amazon Elastic Kubernetes Service (EKS)**, using **AWS Fargate (Fargate)**.
+The setup described in this pattern follows security best practices and provides security at rest and security in transit by default. To encrypt your Amazon EFS file system, it uses an AWS Key Management Service (AWS KMS) key, but you can also specify a key alias that dispatches the process of creating a KMS key.
 
-Regarding security aspects and following best practices, by default, it brings security at rest, security in transit. When encrypting your EFS file system, it uses an AWS managed **Customer Master Key (CMK)**, but it is also possible to specify a key alias that will dispatch the process of creating a CMK, used by **AWS Key Management Service (KMS)** to encrypt your **EFS** file system.
+You can follow the steps in this pattern to create a namespace and Fargate profile for a proof-of-concept (PoC) application, install the Amazon EFS Container Storage Interface (CSI) driver that is used to integrate the Kubernetes cluster with Amazon EFS, configure the storage class, and deploy the PoC application. These steps result in an Amazon EFS file system that is shared among multiple Kubernetes workloads, running over Fargate. The pattern is accompanied by scripts that automate these steps.
 
-Throughout the steps you will create the needed namespace and **Fargate** profile for PoC application, install the **Amazon EFS CSI driver** needed for the integration between **Kubernetes** cluster and **EFS**, configure the needed *Storage Class*, and deploy the PoC application.
+You can use this pattern whenever you want to ensure data persistence in your containerized applications, and avoid data loss in scale-in or scale-out operations. For example:
 
-At the end of this pattern, you are going to see a shared **EFS** file system among different **Kubernetes** workloads, running over **Fargate**.
+DevOps tools – A common scenario is to use Jenkins as a continuous integration and continuous delivery (CI/CD) tool. In this case, you can use Amazon EFS as a shared file system to store configurations among different instances of the CI/CD tool or to store a cache (for example, an Apache Maven repository) for pipeline stages among different instances of the CI/CD tool.
+
+Web servers – A common scenario is to use Apache as an HTTP web server. You can use Amazon EFS as a shared file system to store static files that are shared among different instances of the web server. In this example scenario, modifications are applied directly to the file system instead of static files being baked into a Docker image.
 
 ### Business Use Cases
 
@@ -39,31 +41,25 @@ It is important to mention that in this example scenario, there is a need for on
 ## Prerequisites, limitations, and product versions
 
 ### Prerequisites 
-*  An active AWS account
-*  An existing EKS cluster with Kubernetes version 1.17
-*  Configured permissions for cluster administration
-*  Context configured to the desired EKS cluster
+* An active AWS account
+* An existing Amazon EKS cluster with Kubernetes version 1.17 or later (tested up to version 1.27)
+* An existing Amazon EFS file system to bind a Kubernetes StorageClass and provision file systems dynamically.
+* Cluster administration permissions
+* Context configured to point to the desired Amazon EKS cluster
 
 ### Limitations
-*  **EFS** file system needs to be created manually first, then it could be mounted inside container as a *persistent volume (PV)* using the driver.
-*  There are important considerations around the usage of **EKS** over **Fargate**, like not being able to use Daemonsets, not support the execution of privileged containers, and others. For more details, visit [**AWS Fargate** considerations](https://docs.aws.amazon.com/eks/latest/userguide/fargate.html).
-*  The code provided in the repository runs properly on workstations with Linux, or macOS.
+* There are some limitations to consider when you’re using Amazon EKS with Fargate. For example, the use of some Kubernetes constructs like DaemonSets and privileged containers aren’t supported. For more information, about AWS Fargate limitations, see the AWS Fargate considerations in the Amazon EKS documentation.
+* The code provided with this pattern supports workstations that are running Linux or MacOS.
 
 ### Product versions
-*  AWS CLI version 2+
-*  AWS EFS CSI driver 1.0
-*  eksctl version 0.24.0+
-*  jq version 1.6+
-*  kubectl version 1.17+
-*  Kubernetes version 1.17+
+* AWS Command Line Interface (AWS CLI) version 2 or later
+* Amazon EFS CSI driver version 1.0 or later (tested up to version 2.4.8)
+* `eksctl` version 0.24.0 or later (tested up to version 0.158.0)
+* `jq` version 1.6 or later
+* `kubectl` version 1.17 or later (tested up to version 1.27)
+* Kubernetes version 1.17 or later (tested up to version 1.27)
 
 ## Architecture
-
-### Source technology stack
-N/A
-
-### Source Architecture
-N/A
 
 ### Target technology stack
 
@@ -77,14 +73,89 @@ N/A
 
 The target architect utilizes the products specified in the target architecture stack section, and follows AWS Well-Architected Framework best practices.
 
+![architecture](docs/Architectures-EFS-EKS-Fargate.png)
+
+#### The Infrastructure footprint of the target architecture is composed by:
+* 1 Amazon Virtual Private Cloud (VPC);
+* 2 Availability Zones (AZs);
+* Public Subnet with NAT Gateway to provide internet access;
+* Private Subnet with Amazon Elastic Kubernetes Service (EKS) Cluster, and Amazon EFS Mount Targets (mount points);
+* Amazon Elastic File System at the VPC level;
+* The Amazon EKS Cluster environment structure:
+* AWS Fargate Profiles to accommodate the Kubernetes constructs at the Namespace level.
+#### A Kubernetes Namespace with:
+* 2 application Pods distributed by AZ.
+* Persistent Volume Claim (PVC) bound to a Persistent Volume (PV) at Cluster level.
+* 1 cluster-wide PV bound to the PVC in the Namespace pointing to the EFS Mount Targets in the Private Subnet, outside the cluster.
+
 ## Tools
 
-*  awscli 2
-*  eksctl 0.24.0+
-*  kubectl 1.17+
-*  jq 1.6+
+### CLI Tools
+
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html)– AWS Command Line Interface (AWS CLI) is an open-source tool that you can use to interact with AWS services from the command line.
+* [`eksctl`](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html) – eksctl is a command-line utility for creating and managing Kubernetes clusters on Amazon EKS.
+* [`kubectl`](https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html) – kubectl is a command-line utility for communicating with the cluster API server.
+* [`jq`](https://stedolan.github.io/jq/download/) – jq is a command-line tool for parsing JSON.
+
+### AWS services
+
+* [Amazon EFS](https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html) – Amazon Elastic File System (Amazon EFS) manages file storage in the AWS Cloud. In this pattern, it provides a simple, scalable, fully managed, and shared file system for use with Amazon EKS.
+* [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html) – Amazon Elastic Kubernetes Service (Amazon EKS) helps you run Kubernetes on AWS without needing to install or operate your own clusters.
+* [AWS Fargate](https://docs.aws.amazon.com/eks/latest/userguide/fargate.html) – AWS Fargate is a serverless compute engine for Amazon EKS. It creates and manages compute resources for your Kubernetes applications.
+* [AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html) – AWS Key Management Service (AWS KMS) is a encryption and key management service that helps you protect your application data.
+
+### Code
+
+The code for this pattern is provided in a [GitHub repo](https://github.com/aws-samples/eks-efs-share-within-fargate). The scripts are organized by epic, in the folders epic01 through epic06, corresponding to the order in the following
+
+## Best Practices
+
+The target architecture includes the following services and components, and follows AWS Well-Architected Framework best practices:
+
+* Amazon EFS, which provides a simple, scalable, fully managed elastic NFS file system. This is used as a shared file system among all replications of the PoC application that are running in pods, which are distributed in the private subnets of the chosen Amazon EKS cluster.
+* An Amazon EFS mount target for each private subnet. This provides redundancy per Availability Zone within the virtual private cloud (VPC) of the cluster.
+* Amazon EKS, which runs the Kubernetes workloads. You must provision an Amazon EKS cluster before you use this pattern, as described in the Prerequisites section.
+* AWS KMS, which provides encryption at rest for the content that’s stored in the Amazon EFS file system.
+* Fargate, which manages the compute resources for the containers so that you can focus on business requirements instead of infrastructure burden. The Fargate profile is created for all private subnets. It provides redundancy per Availability Zone within the virtual private cloud (VPC) of the cluster.
 
 ## Epics
+
+### Provision Amazon EKS Cluster infrastructure (optional)
+> Follow this step only if you don't have an Amazon EKS cluster running in your environment. If you already have one, please move on to the next epic.
+
+|Story|Description|Skills required|
+|---|---|---|
+|Create an Amazon EKS cluster|**If you already have a cluster deployed, you can move on to the next epic.** This epic will help you create an Amazon EKS Cluster in an existing AWS Account. In the GitHub Repo directory there are patterns to deploy an Amazon EKS cluster using Terraform, or `eksctl`. On the Terraform pattern, there are also examples showing how to link Fargate profiles to your Amazon EKS cluster; create an Amazon EFS; and deploy Amazon EFS CSI driver in your Amazon EKS cluster.|AWS administrator, Terraform administrator, Kubernetes administrator|
+Export environment variables|In the [GitHub repo](https://github.com/aws-samples/eks-efs-share-within-fargate/scripts) directory you can find a script called env.sh you can source it to export the environment variables that will be requested in the following epics. Refer to *Additional Information* section for more details.|AWS systems administrator|
+
+#### Supporting script
+
+Run the env.sh script informing the requested information to be used in the next steps.
+
+```sh
+source ./scripts/env.sh
+Inform the AWS Account ID: 
+<13-digit-account-id>
+Inform ypur AWS Region: 
+<aws-region-code>
+Inform your Amazon EKS Cluster Name: 
+<amazon-eks-cluster-name>
+Inform the Amazon EFS Creation Token: 
+<self-genereated-uuid>
+```
+
+If not noted yet, you can get all the information requested above with the following CLI commands:
+
+```sh
+# ACCOUNT ID
+aws sts get-caller-identity --query "Account" --output text
+# REGION CODE
+aws configure get region
+# CLUSTER EKS NAME
+aws eks list-clusters --query "clusters" --output text
+# GENERATE EFS TOKEN
+uuidgen
+```
 
 ### Create a Kubernetes namespace for application workloads, and a linked Fargate profile
 
@@ -104,14 +175,21 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<MY_CLUSTER_NAME>`|`-c <MY_CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<MY_APP_NAMESPACE>`|`-n <MY_APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 
-<br/>Execute the script as follows:
+<br/>Execute the script as follows to create Fargate profile with a custom application Namespace name:
 ```sh
 ./scripts/epic01/create-k8s-ns-and-linked-fargate-profile.sh \
-    -c "MY_CLUSTER_NAME" 
+    -c "$CLUSTER_NAME" -n $NAMESPACE
 ```
+
+<br/>Execute the script as follows to create Fargate profile with a default provided Namespace `poc-efs-eks-fargate`.
+```sh
+./scripts/epic01/create-k8s-ns-and-linked-fargate-profile.sh \
+    -c "$CLUSTER_NAME" -n $NAMESPACE
+```
+
 
 ### Create an EFS for application workloads
 
@@ -141,32 +219,32 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<MY_CLUSTER_NAME>`|`-c <MY_CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|File System Token|The token that is used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<MY_FILE_SYSTEM_TOKEN>`|`-t <MY_FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Security Group Name|The name of the security group that is used to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<MY_SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|`-s <MY_SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|Parameter over env variable.|*eks-<MY_CLUSTER_NAME>-efs-SecurityGroup*|No.|
+|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|File System Token|The token that is used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|`-t <FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|Security Group Name|The name of the security group that is used to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|`-s <SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|Parameter over env variable.|*eks-<CLUSTER_NAME>-efs-SecurityGroup*|No.|
 |Disabled Encryption at Rest|Identifies if the [EFS](https://aws.amazon.com/efs/) is going to be created without enabled encryption.|None.|`-d`|N/A|Encryption at rest enabled.|No.|
-|Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) creation. The generated key is used in the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<MY_KMS_CMK_KEY_ALIAS>`|`-k <MY_KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No, and ignored if `-d` parameter is informed.|
+|Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) creation. The generated key is used in the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<KMS_CMK_KEY_ALIAS>`|`-k <KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No, and ignored if `-d` parameter is informed.|
 
 <br/>Execute the script as follows (for encryption at rest enabled):
 ```sh
 ./scripts/epic02/create-efs.sh \
-    -c "MY_CLUSTER_NAME" \
-    -t "MY_EFS_CREATION_TOKEN"
+    -c "$CLUSTER_NAME" \
+    -t "$FS_CREATION_TOKEN"
 ```
 
 <br/>Execute the script as follows (for encryption at rest enabled and CMK creation):
 ```sh
 ./scripts/epic02/create-efs.sh \
-    -c "MY_CLUSTER_NAME" \
-    -t "MY_EFS_CREATION_TOKEN" \
-    -k "MY_CMK_KEY_ALIAS"
+    -c "$CLUSTER_NAME" \
+    -t "$EFS_CREATION_TOKEN" \
+    -k "$CMK_KEY_ALIAS"
 ```
 
 <br/>Execute the script as follows (for encryption at rest disabled):
 ```sh
 ./scripts/epic02/create-efs.sh -d \
-    -c "MY_CLUSTER_NAME" \
-    -t "MY_EFS_CREATION_TOKEN"
+    -c "$CLUSTER_NAME" \
+    -t "$EFS_CREATION_TOKEN"
 ```
 
 ### Install Amazon EFS Components into Kubernetes cluster
@@ -213,18 +291,18 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|File System Token|The token that was used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<MY_FILE_SYSTEM_TOKEN>`|`-t <MY_FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<MY_APP_NAMESPACE>`|`-n <MY_APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|File System Token|The token that was used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|`-t <FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 |Disabled Encryption in Transit|Identifies if the [EFS](https://aws.amazon.com/efs/) is going to be used without enabled encryption in transit.|None.|`-d`|N/A|Encryption in transit enabled.|No.|
 
 <br/>Execute the script as follows (for encryption in transit enabled):
 ```sh
-./scripts/epic04/deploy-poc-app.sh -t "MY_EFS_CREATION_TOKEN"
+./scripts/epic04/deploy-poc-app.sh -t "$EFS_CREATION_TOKEN"
 ```
 
 <br/>Execute the script as follows (for encryption in transit disabled):
 ```sh
-./scripts/epic04/deploy-poc-app.sh -d -t "MY_EFS_CREATION_TOKEN"
+./scripts/epic04/deploy-poc-app.sh -d -t "$EFS_CREATION_TOKEN"
 ```
 
 ### Validate EFS persistence, durability, and shareability throughout the workloads of the application
@@ -313,14 +391,14 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|File System ID|The ID of the file system previously created.|`export FS_ID=<MY_EFS_FILE_SYSTEM_ID>`|1st parameter when calling the script.|Parameter over env variable.|No default value.|Yes, but only if File System Token is not provided.|
-|File System Token|The token that was used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<MY_FILE_SYSTEM_TOKEN>`|2nd parameter when calling the script.|Parameter over env variable.|No default value.|Yes, for finding [EFS](https://aws.amazon.com/efs/) File System ID, if that was not provided.|
-|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<MY_APP_NAMESPACE>`|3rd parameter when calling the script.|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|File System ID|The ID of the file system previously created.|`export FS_ID=<EFS_FILE_SYSTEM_ID>`|1st parameter when calling the script.|Parameter over env variable.|No default value.|Yes, but only if File System Token is not provided.|
+|File System Token|The token that was used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|2nd parameter when calling the script.|Parameter over env variable.|No default value.|Yes, for finding [EFS](https://aws.amazon.com/efs/) File System ID, if that was not provided.|
+|Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|3rd parameter when calling the script.|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 
 <br/>Execute the script as follows:
 ```sh
 ./scripts/epic05/validate-efs-content.sh \
-    -t "MY_EFS_FILE_SYSTEM_ID"
+    -t "EFS_FILE_SYSTEM_ID"
 ```
 
 After deleting the PoC application components at first stage of this script, and installing the validation process components on the subsequent stages, the final result is going to be the following:
@@ -362,25 +440,25 @@ The scripts supports parameters and environment variables as follows:
 
 |Input|Description|Env. Variable|Parameter|Precedence Order|Default Value|Mandatory|
 |---|---|---|---|---|---|---|
-|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<MY_CLUSTER_NAME>`|`-c <MY_CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|File System Token|The token that is used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<MY_FILE_SYSTEM_TOKEN>`|`-t <MY_FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
-|Security Group Name|The name of the security group that was created to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<MY_SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|`-s <MY_SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|Parameter over env variable.|*eks-<MY_CLUSTER_NAME>-efs-SecurityGroup*|No.|
-|Application Namespace|Namespace in which the application was deployed.|`export K8S_APP_NAMESPACE=<MY_APP_NAMESPACE>`|`-n <MY_APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
-|Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) used during the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<MY_KMS_CMK_KEY_ALIAS>`|`-k <MY_KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No.|
+|K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export K8S_CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|File System Token|The token that is used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|`-t <FILE_SYSTEM_TOKEN>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
+|Security Group Name|The name of the security group that was created to protect access to the created [EFS](https://aws.amazon.com/efs/) that is accessed only by the Kubernetes cluster VPC private subnets' CIDR block ranges.|`export SG_EFS_NAME=<SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|`-s <SECURITY_GROUP_NAME_FOR_EFS_K8S_CLUSTER>`|Parameter over env variable.|*eks-<CLUSTER_NAME>-efs-SecurityGroup*|No.|
+|Application Namespace|Namespace in which the application was deployed.|`export K8S_APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
+|Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) used during the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<KMS_CMK_KEY_ALIAS>`|`-k <KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No.|
 
 <br/>Execute the script as follows (if encryption at rest enabled and CMK Key Alias was not informed):
 ```sh
 ./scripts/epic06/clean-up-resources.sh \
-    -c "MY_CLUSTER_NAME" \
-    -t "MY_EFS_CREATION_TOKEN"
+    -c "$CLUSTER_NAME" \
+    -t "$EFS_CREATION_TOKEN"
 ```
 
 <br/>Execute the script as follows (if encryption at rest enabled and CMK Key Alias was informed):
 ```sh
 ./scripts/epic06/clean-up-resources.sh \
-    -c "MY_CLUSTER_NAME" \
-    -t "MY_EFS_CREATION_TOKEN" \
-    -k "MY_CMK_KEY_ALIAS"
+    -c "$CLUSTER_NAME" \
+    -t "$EFS_CREATION_TOKEN" \
+    -k "$CMK_KEY_ALIAS"
 ```
 
 ## Related resources
