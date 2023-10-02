@@ -41,6 +41,120 @@ locals {
   # To ensure name is consistent between whats created and the user data script
   second_volume_name = "/dev/xvdb"
 
+  network_acls = {
+    default_inbound = [
+      {
+        rule_number = 900
+        rule_action = "allow"
+        from_port   = 1024
+        to_port     = 65535
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+    ]
+    default_outbound = [
+      {
+        rule_number = 900
+        rule_action = "allow"
+        from_port   = 32768
+        to_port     = 65535
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+    ]
+    public_inbound = [
+      {
+        rule_number = 100
+        rule_action = "allow"
+        from_port   = 80
+        to_port     = 80
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+      {
+        rule_number = 110
+        rule_action = "allow"
+        from_port   = 443
+        to_port     = 443
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+      {
+        rule_number = 120
+        rule_action = "allow"
+        from_port   = 22
+        to_port     = 22
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+      {
+        rule_number = 130
+        rule_action = "allow"
+        from_port   = 3389
+        to_port     = 3389
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+      {
+        rule_number     = 140
+        rule_action     = "allow"
+        from_port       = 80
+        to_port         = 80
+        protocol        = "tcp"
+        ipv6_cidr_block = "::/0"
+      },
+    ]
+    public_outbound = [
+      {
+        rule_number = 100
+        rule_action = "allow"
+        from_port   = 80
+        to_port     = 80
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+      {
+        rule_number = 110
+        rule_action = "allow"
+        from_port   = 443
+        to_port     = 443
+        protocol    = "tcp"
+        cidr_block  = "0.0.0.0/0"
+      },
+      {
+        rule_number = 120
+        rule_action = "allow"
+        from_port   = 1433
+        to_port     = 1433
+        protocol    = "tcp"
+        cidr_block  = "10.0.100.0/22"
+      },
+      {
+        rule_number = 130
+        rule_action = "allow"
+        from_port   = 22
+        to_port     = 22
+        protocol    = "tcp"
+        cidr_block  = "10.0.100.0/22"
+      },
+      {
+        rule_number = 140
+        rule_action = "allow"
+        icmp_code   = -1
+        icmp_type   = 8
+        protocol    = "icmp"
+        cidr_block  = "10.0.0.0/22"
+      },
+      {
+        rule_number     = 150
+        rule_action     = "allow"
+        from_port       = 90
+        to_port         = 90
+        protocol        = "tcp"
+        ipv6_cidr_block = "::/0"
+      },
+    ]
+  }
   tags = {
     Blueprint  = local.name
     GithubRepo = "github.com/aws-samples/eks-efs-share-within-fargate"
@@ -52,7 +166,11 @@ locals {
 # Cluster
 ################################################################################
 
+#tfsec:ignore:aws-eks-no-public-cluster-access - This is by design
+#tfsec:ignore:aws-eks-no-public-cluster-access-to-cidr - This is by design
+#tfsec:ignore:aws-ec2-no-public-egress-sgr - This is by design
 module "eks" {
+#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 19.16"
 
@@ -60,8 +178,9 @@ module "eks" {
   cluster_version                = "1.27"
   cluster_endpoint_public_access = true
 
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  vpc_id                    = module.vpc.vpc_id
+  subnet_ids                = module.vpc.private_subnets
+  cluster_enabled_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   fargate_profiles = merge({
     kube_system = {
@@ -113,6 +232,7 @@ module "eks" {
 ################################################################################
 
 module "eks_blueprints_addons" {
+#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "aws-ia/eks-blueprints-addons/aws"
   version = "~> 1.0"
 
@@ -155,16 +275,36 @@ resource "kubernetes_storage_class_v1" "efs" {
 # Supporting Resources
 ################################################################################
 
+#tfsec:ignore:aws-ec2-no-public-ingress-acl - False Positive Inbound ACLs are enabled, line 302-308
+#tfsec:ignore:aws-ec2-require-vpc-flow-logs-for-all-vpcs - False Positive Flow Logs are enabled - line 289-294
 module "vpc" {
+#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
 
   name = local.name
   cidr = local.vpc_cidr
 
+  enable_flow_log                           = true
+  create_flow_log_cloudwatch_log_group      = true
+  create_flow_log_cloudwatch_iam_role       = true
+  flow_log_max_aggregation_interval         = 60
+  flow_log_cloudwatch_log_group_name_prefix = "/aws/my-amazing-vpc-flow-logz/"
+  flow_log_cloudwatch_log_group_name_suffix = local.name
+
+  vpc_flow_log_tags = local.tags
+
   azs             = local.azs
   private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
   public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
+
+  public_dedicated_network_acl = true
+  public_inbound_acl_rules     = concat(local.network_acls["default_inbound"], local.network_acls["public_inbound"])
+  public_outbound_acl_rules    = concat(local.network_acls["default_outbound"], local.network_acls["public_outbound"])
+
+  private_dedicated_network_acl = true
+  private_inbound_acl_rules     = local.network_acls["default_inbound"]
+  private_outbound_acl_rules    = local.network_acls["default_outbound"]
 
   enable_nat_gateway = true
   single_nat_gateway = true
@@ -181,6 +321,7 @@ module "vpc" {
 }
 
 module "efs" {
+#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/efs/aws"
   version = "~> 1.1"
 
@@ -205,6 +346,7 @@ module "efs" {
 }
 
 module "ebs_kms_key" {
+#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/kms/aws"
   version = "~> 1.5"
 
@@ -226,6 +368,7 @@ module "ebs_kms_key" {
 }
 
 module "ebs_csi_driver_irsa" {
+#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.20"
 
