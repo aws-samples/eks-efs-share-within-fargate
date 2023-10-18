@@ -89,15 +89,7 @@ locals {
         cidr_block  = "0.0.0.0/0"
       },
       {
-        rule_number = 130
-        rule_action = "allow"
-        from_port   = 3389
-        to_port     = 3389
-        protocol    = "tcp"
-        cidr_block  = "0.0.0.0/0"
-      },
-      {
-        rule_number     = 140
+        rule_number     = 130
         rule_action     = "allow"
         from_port       = 80
         to_port         = 80
