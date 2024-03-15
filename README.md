@@ -27,8 +27,9 @@ Some examples are described in the following sections:
 It is common to have enterprises using their own DevOps strategies and tools.
 
 One of the common scenarios is to see **Jenkins** being used as a CI/CD tool. In such scenario, a shared file system can be used, for example, to:
-*  Store configuration among different instances of the CI/CD tool
-*  Store cache, for example **Maven** repository, for stages of a pipeline, among different instances of the CI/CD tool
+
+* Store configuration among different instances of the CI/CD tool
+* Store cache, for example **Maven** repository, for stages of a pipeline, among different instances of the CI/CD tool
 
 #### Web Server
 
@@ -40,7 +41,8 @@ It is important to mention that in this example scenario, there is a need for on
 
 ## Prerequisites, limitations, and product versions
 
-### Prerequisites 
+### Prerequisites
+
 * An active AWS account
 * An existing Amazon EKS cluster with Kubernetes version 1.17 or later (tested up to version 1.27)
 * An existing Amazon EFS file system to bind a Kubernetes StorageClass and provision file systems dynamically.
@@ -48,10 +50,12 @@ It is important to mention that in this example scenario, there is a need for on
 * Context configured to point to the desired Amazon EKS cluster
 
 ### Limitations
+
 * There are some limitations to consider when you’re using Amazon EKS with Fargate. For example, the use of some Kubernetes constructs like DaemonSets and privileged containers aren’t supported. For more information, about AWS Fargate limitations, see the AWS Fargate considerations in the Amazon EKS documentation.
 * The code provided with this pattern supports workstations that are running Linux or MacOS.
 
 ### Product versions
+
 * AWS Command Line Interface (AWS CLI) version 2 or later
 * Amazon EFS CSI driver version 1.0 or later (tested up to version 2.4.8)
 * `eksctl` version 0.24.0 or later (tested up to version 0.158.0)
@@ -63,11 +67,11 @@ It is important to mention that in this example scenario, there is a need for on
 
 ### Target technology stack
 
-*  Amazon EFS
-*  Amazon EKS
-*  AWS KMS
-*  Fargate
-*  Kubernetes
+* Amazon EFS
+* Amazon EKS
+* AWS KMS
+* Fargate
+* Kubernetes
 
 ### Target Architecture
 
@@ -75,7 +79,8 @@ The target architect utilizes the products specified in the target architecture 
 
 ![architecture](docs/Architectures-EFS-EKS-Fargate.png)
 
-#### The Infrastructure footprint of the target architecture is composed by:
+#### The Infrastructure footprint of the target architecture is composed by
+
 * 1 Amazon Virtual Private Cloud (VPC);
 * 2 Availability Zones (AZs);
 * Public Subnet with NAT Gateway to provide internet access;
@@ -83,7 +88,9 @@ The target architect utilizes the products specified in the target architecture 
 * Amazon Elastic File System at the VPC level;
 * The Amazon EKS Cluster environment structure:
 * AWS Fargate Profiles to accommodate the Kubernetes constructs at the Namespace level.
-#### A Kubernetes Namespace with:
+
+#### A Kubernetes Namespace with
+
 * 2 application Pods distributed by AZ.
 * Persistent Volume Claim (PVC) bound to a Persistent Volume (PV) at Cluster level.
 * 1 cluster-wide PV bound to the PVC in the Namespace pointing to the EFS Mount Targets in the Private Subnet, outside the cluster.
@@ -121,12 +128,13 @@ The target architecture includes the following services and components, and foll
 ## Epics
 
 ### Provision Amazon EKS Cluster infrastructure (optional)
+
 > Follow this step only if you don't have an Amazon EKS cluster running in your environment. If you already have one, please move on to the next epic.
 
 |Story|Description|Skills required|
 |---|---|---|
 |Create an Amazon EKS cluster|**If you already have a cluster deployed, you can move on to the next epic.** This epic will help you create an Amazon EKS Cluster in an existing AWS Account. In the GitHub Repo directory there are patterns to deploy an Amazon EKS cluster using Terraform, or `eksctl`. On the Terraform pattern, there are also examples showing how to link Fargate profiles to your Amazon EKS cluster; create an Amazon EFS; and deploy Amazon EFS CSI driver in your Amazon EKS cluster.|AWS administrator, Terraform administrator, Kubernetes administrator|
-Export environment variables|In the [GitHub repo](https://github.com/aws-samples/eks-efs-share-within-fargate/scripts) directory you can find a script called env.sh you can source it to export the environment variables that will be requested in the following epics. Refer to *Additional Information* section for more details.|AWS systems administrator|
+|Export environment variables|In the [GitHub repo](https://github.com/aws-samples/eks-efs-share-within-fargate/scripts) directory you can find a script called env.sh you can source it to export the environment variables that will be requested in the following epics. Refer to *Additional Information* section for more details.|AWS systems administrator|
 
 #### Supporting script
 
@@ -157,19 +165,25 @@ aws eks list-clusters --query "clusters" --output text
 uuidgen
 ```
 
+> If you already had an Amazon EFS deployed in your environment, or if you bootstraped the environment with the provided Terraform Blueprint in the `bootstrap/terraform` directory, you can retrieve the Amazon EFS Token information using the below command:
+
+```sh
+aws efs describe-file-systems --query 'FileSystems[].CreationToken' --output text
+```
+
 ### Create a Kubernetes namespace for application workloads, and a linked Fargate profile
 
 |Story|Description|Skills required|
 |---|---|---|
 |Create a Kubernetes namespace for application workloads|Create a namespace for receiving the application workloads that interact with the EFS.|Kubernetes User with granted permissions|
 |Create a custom Fargate Profile|Create a custom Fargate profile linked to the created namespace.|Kubernetes User with granted permissions|
-<br/>
 
-#### Supporting script
+#### Supporting script `epic01`
 
 The script `create-k8s-ns-and-linked-fargate-profile.sh` is responsible for executing both stories related to this epic:
-*  Creating the `namespace` that will receive the application this PoC
-*  Creating the [Fargate](https://aws.amazon.com/fargate/) profile linked to the created namespace
+
+* Creating the `namespace` that will receive the application this PoC
+* Creating the [Fargate](https://aws.amazon.com/fargate/) profile linked to the created namespace
 
 The scripts supports parameters and environment variables as follows:
 
@@ -178,18 +192,19 @@ The scripts supports parameters and environment variables as follows:
 |K8S Cluster Name|Name of the k8s cluster where this will be executed.|`export CLUSTER_NAME=<CLUSTER_NAME>`|`-c <CLUSTER_NAME>`|Parameter over env variable.|No default value.|Yes, error if not provided.|
 |Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 
-<br/>Execute the script as follows to create Fargate profile with a custom application Namespace name:
+Execute the script as follows to create Fargate profile with a custom application Namespace name:
+
 ```sh
 ./scripts/epic01/create-k8s-ns-and-linked-fargate-profile.sh \
     -c "$CLUSTER_NAME" -n $APP_NAMESPACE
 ```
 
-<br/>Execute the script as follows to create Fargate profile with a default provided Namespace `poc-efs-eks-fargate`.
+Execute the script as follows to create Fargate profile with a default provided Namespace `poc-efs-eks-fargate`.
+
 ```sh
 ./scripts/epic01/create-k8s-ns-and-linked-fargate-profile.sh \
-    -c "$CLUSTER_NAME" -n $APP_NAMESPACE
+    -c "$CLUSTER_NAME" 
 ```
-
 
 ### Create an EFS for application workloads
 
@@ -197,21 +212,21 @@ The scripts supports parameters and environment variables as follows:
 |---|---|---|
 |Generate an unique token for EFS creation|The EFS file system creation requires a creation token in the request to Amazon EFS, which is used to ensure idempotent creation (calling the operation with same creation token has no effect). Due to this requirement, generate an unique token through an available technique, for instance, Universally unique identifier (UUID).|System Administrator|
 |(Optionally) Create a [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys)|Create an unique customer managed customer master key (CMK), symmetric key, in your AWS account and chosen region, that is used by EFS creation process. By the default, this epic is enabling encryption at rest when creating the EFS. If CMK is created, this key is used for the EFS encryption.|System Administrator|
-|Create an encrypted EFS File System|Create the EFS for receiving the data files that are read/written by the application workloads. As a best practice, encryption at rest is enabled, and is setup at EFS creation process.<br/>This story is mutually exclusive to "Create an non-encrypted EFS File System".|System Administrator|
-|Create an non-encrypted EFS File System|In the scenario where encryption at rest is not needed (default is to be enabled), create the EFS for receiving the data files that are read/written by the application workloads.<br/>This story is mutually exclusive to "Create an encrypted EFS File System".|System Administrator|
+|Create an encrypted EFS File System|Create the EFS for receiving the data files that are read/written by the application workloads. As a best practice, encryption at rest is enabled, and is setup at EFS creation process. This story is mutually exclusive to "Create an non-encrypted EFS File System".|System Administrator|
+|Create an non-encrypted EFS File System|In the scenario where encryption at rest is not needed (default is to be enabled), create the EFS for receiving the data files that are read/written by the application workloads. This story is mutually exclusive to "Create an encrypted EFS File System".|System Administrator|
 |Create a Security Group for NFS|Create a security group to allow EKS cluster to access EFS File System.|System Administrator|
 |Enable NFS protocol inbound rule for created security group|Update the inbound rules of the created security group in order to allow incoming traffic for the following setting: protocol tcp, port 2049, and source as the Kubernetes cluster VPC private subnets' CIDR block ranges.|System Administrator|
 |Add a Mount Target for each private subnet|For each private subnet of the Kubernetes cluster, create a mount target for the EFS and the security group that have been created.|System Administrator|
-<br/>
 
-#### Supporting script
+#### Supporting script `epic02`
 
 The script `create-efs.sh` is responsible for executing from the second story on related to this epic:
-*  (Optionally) Create a Customer Managed Customer Master Key (CMK) for EFS File System encryption
-*  Create an (encrypted/unencrypted) EFS File System that will be the storage for the application workloads
-*  Create a Security Group for the EFS in order to restrict access from the Kubernetes cluster
-*  Enable EFS protocol/port in the created Security Group for Kubernetes cluster's private subnets' CIDR block ranges
-*  Add a Mount Target for each private subnet of Kubernetes cluster
+
+* (Optionally) Create a Customer Managed Customer Master Key (CMK) for EFS File System encryption
+* Create an (encrypted/unencrypted) EFS File System that will be the storage for the application workloads
+* Create a Security Group for the EFS in order to restrict access from the Kubernetes cluster
+* Enable EFS protocol/port in the created Security Group for Kubernetes cluster's private subnets' CIDR block ranges
+* Add a Mount Target for each private subnet of Kubernetes cluster
 
 The first story is not implemented inside the script, in order to not generate a new [EFS](https://aws.amazon.com/efs/) anytime it is executed.
 
@@ -225,14 +240,16 @@ The scripts supports parameters and environment variables as follows:
 |Disabled Encryption at Rest|Identifies if the [EFS](https://aws.amazon.com/efs/) is going to be created without enabled encryption.|None.|`-d`|N/A|Encryption at rest enabled.|No.|
 |Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) creation. The generated key is used in the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<KMS_CMK_KEY_ALIAS>`|`-k <KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No, and ignored if `-d` parameter is informed.|
 
-<br/>Execute the script as follows (for encryption at rest enabled):
+Execute the script as follows (for encryption at rest enabled):
+
 ```sh
 ./scripts/epic02/create-efs.sh \
     -c "$CLUSTER_NAME" \
-    -t "$FS_CREATION_TOKEN"
+    -t "$EFS_CREATION_TOKEN"
 ```
 
-<br/>Execute the script as follows (for encryption at rest enabled and CMK creation):
+Execute the script as follows (for encryption at rest enabled and CMK creation):
+
 ```sh
 ./scripts/epic02/create-efs.sh \
     -c "$CLUSTER_NAME" \
@@ -240,7 +257,8 @@ The scripts supports parameters and environment variables as follows:
     -k "$CMK_KEY_ALIAS"
 ```
 
-<br/>Execute the script as follows (for encryption at rest disabled):
+Execute the script as follows (for encryption at rest disabled):
+
 ```sh
 ./scripts/epic02/create-efs.sh -d \
     -c "$CLUSTER_NAME" \
@@ -249,21 +267,24 @@ The scripts supports parameters and environment variables as follows:
 
 ### Install Amazon EFS Components into Kubernetes cluster
 
+> This step can be skipped if you bootstraped the environment with the provided Terraform Blueprint in the `bootstrap/terraform` directory
+
 |Story|Description|Skills required|
 |---|---|---|
 |Deploy the Amazon EFS CSI driver into the cluster|Deploy the Amazon EFS CSI driver into the cluster in order to let it provision storage according to Persistent Volume Claims created by applications.|Kubernetes User with granted permissions|
-|Deploy the storage class into the cluster	|Deploy the storage class into the cluster for the EFS provisioner (efs.csi.aws.com).|Kubernetes User with granted permissions|
-<br/>
+|Deploy the storage class into the cluster|Deploy the storage class into the cluster for the EFS provisioner (efs.csi.aws.com).|Kubernetes User with granted permissions|
 
-#### Supporting script
+#### Supporting script `epic03`
 
 The script `create-k8s-efs-csi-sc.sh` is responsible for executing both stories related to this epic:
-*  Deploying the `csi driver` into the Kubernetes cluster
-*  Deploying the `storage class` for [EFS](https://aws.amazon.com/efs/) provisioner into the Kubernetes cluster
+
+* Deploying the `csi driver` into the Kubernetes cluster
+* Deploying the `storage class` for [EFS](https://aws.amazon.com/efs/) provisioner into the Kubernetes cluster
 
 There is no parameter, nor environment variable for this script.
 
-<br/>Execute the script as follows:
+Execute the script as follows:
+
 ```sh
 ./scripts/epic03/create-k8s-efs-csi-sc.sh
 ```
@@ -272,20 +293,20 @@ There is no parameter, nor environment variable for this script.
 
 |Story|Description|Skills required|
 |---|---|---|
-|Deploy the Persistent Volume needed by the application|Deploy the persistent volume (PV) needed by the application for writing/reading content, linking it to the created storage class, and also to the created EFS file system ID.<br/>The defined PV can have any size specified in the storage field. This is a Kubernetes required field, but since [EFS](https://aws.amazon.com/efs/)  is an elastic file system, it does not really enforce any file system capacity. The Amazon EFS CSI Driver enables encryption by default, as a best practice.<br/>This story is mutually exclusive to "Deploy the Persistent Volume, without encryption in transit, needed by the application".|Kubernetes User with granted permissions|
-|Deploy the Persistent Volume, without encryption in transit, needed by the application|Deploy the persistent volume (PV) needed by the application for writing/reading content, linking it to the created storage class, and also to the created EFS file system ID. The defined PV can have any size specified in the storage field. This is a Kubernetes required field, but since EFS is an elastic file system, it does not really enforce any file system capacity. In this story, the PV is configured to disable encryption in transit (what is enabled by default by Amazon EFS CSI Driver).<br/>This story is mutually exclusive to "Deploy the Persistent Volume needed by the application".|Kubernetes User with granted permissions|
-|Deploy the Persistent Volume Claim requested by the application|Deploy the persistent volume claim (PVC) requested by the application, linking it to the created storage class, and with the same access mode of the created persistent volume (PV).<br/>The defined PVC can have any size specified in the *storage* field. This is a Kubernetes required field, but since [EFS](https://aws.amazon.com/efs/)  is an elastic file system, it does not really enforce any file system capacity.|Kubernetes User with granted permissions|
+|Deploy the Persistent Volume needed by the application|Deploy the persistent volume (PV) needed by the application for writing/reading content, linking it to the created storage class, and also to the created EFS file system ID. The defined PV can have any size specified in the storage field. This is a Kubernetes required field, but since [EFS](https://aws.amazon.com/efs/)  is an elastic file system, it does not really enforce any file system capacity. The Amazon EFS CSI Driver enables encryption by default, as a best practice. This story is mutually exclusive to "Deploy the Persistent Volume, without encryption in transit, needed by the application".|Kubernetes User with granted permissions|
+|Deploy the Persistent Volume, without encryption in transit, needed by the application|Deploy the persistent volume (PV) needed by the application for writing/reading content, linking it to the created storage class, and also to the created EFS file system ID. The defined PV can have any size specified in the storage field. This is a Kubernetes required field, but since EFS is an elastic file system, it does not really enforce any file system capacity. In this story, the PV is configured to disable encryption in transit (what is enabled by default by Amazon EFS CSI Driver). This story is mutually exclusive to "Deploy the Persistent Volume needed by the application".|Kubernetes User with granted permissions|
+|Deploy the Persistent Volume Claim requested by the application|Deploy the persistent volume claim (PVC) requested by the application, linking it to the created storage class, and with the same access mode of the created persistent volume (PV). The defined PVC can have any size specified in the *storage* field. This is a Kubernetes required field, but since [EFS](https://aws.amazon.com/efs/)  is an elastic file system, it does not really enforce any file system capacity.|Kubernetes User with granted permissions|
 |Deploy the workload 1 of the application|Deploy the pod that represents the workload 1 of the application, and that write content to the file "/data/out1.txt".|Kubernetes User with granted permissions|
 |Deploy the workload 2 of the application|Deploy the pod that represents the workload 2 of the application, and that write content to the file "/data/out2.txt".|Kubernetes User with granted permissions|
-<br/>
 
-#### Supporting script
+#### Supporting script `epic04`
 
 The script `deploy-poc-app.sh` is responsible for executing both stories related to this epic:
-*  Deploying the `persistent volume` needed by the application
-*  Deploying the `persistent volume claim` requested by the application
-*  Deploying the representation of workload 1 for this PoC, that writes content to a specific file in the created [EFS](https://aws.amazon.com/efs/) 
-*  Deploying the representation of workload 2 for this PoC, that writes content to a specific file in the created [EFS](https://aws.amazon.com/efs/) 
+
+* Deploying the `persistent volume` needed by the application
+* Deploying the `persistent volume claim` requested by the application
+* Deploying the representation of workload 1 for this PoC, that writes content to a specific file in the created [EFS](https://aws.amazon.com/efs/)
+* Deploying the representation of workload 2 for this PoC, that writes content to a specific file in the created [EFS](https://aws.amazon.com/efs/)
 
 The scripts supports parameters and environment variables as follows:
 
@@ -295,12 +316,14 @@ The scripts supports parameters and environment variables as follows:
 |Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 |Disabled Encryption in Transit|Identifies if the [EFS](https://aws.amazon.com/efs/) is going to be used without enabled encryption in transit.|None.|`-d`|N/A|Encryption in transit enabled.|No.|
 
-<br/>Execute the script as follows (for encryption in transit enabled):
+Execute the script as follows (for encryption in transit enabled):
+
 ```sh
 ./scripts/epic04/deploy-poc-app.sh -t "$EFS_CREATION_TOKEN"
 ```
 
-<br/>Execute the script as follows (for encryption in transit disabled):
+Execute the script as follows (for encryption in transit disabled):
+
 ```sh
 ./scripts/epic04/deploy-poc-app.sh -d -t "$EFS_CREATION_TOKEN"
 ```
@@ -314,19 +337,21 @@ The scripts supports parameters and environment variables as follows:
 |Validate that workload 1 is able to read file written by workload 2|Validate that workload 1 of the application is able to read the file /data/out2.txt, written by workload 2 of the application, from the EFS.|Kubernetes User with granted permissions|
 |Validate that workload 2 is able to read file written by workload 1|Validate that workload 2 of the application is able to read the file /data/out1.txt, written by workload 1 of the application, from the EFS.|Kubernetes User with granted permissions|
 |Validade that after removing application components, files are kept in the EFS|Validade that after removing application components (persistent volume, persistent volume claim, and pods) the files are kept in the EFS, due to the nature of retaining.|Kubernetes User with granted permissions|
-<br/>
 
 #### Supporting commands
 
-For this epic, its executing is made by standalone commands (considering that the created `namespace` is called **poc-efs-eks-fargate**), excepting per the last story that has a supporting script.<br/>
+For this epic, its executing is made by standalone commands (considering that the created `namespace` is called **poc-efs-eks-fargate**), excepting per the last story that has a supporting script.
 
 ***Validate that workload 1 is writing to specific file in the EFS***
 
-*  Execute the script as follows:
+* Execute the script as follows:
+
     ```sh
-    kubectl exec -ti poc-app1 -n poc-efs-eks-fargate -- tail -f /data/out1.txt
+    kubectl exec -ti poc-app1 -n $APP_NAMESPACE -- tail -f /data/out1.txt
     ```
-*  The results will be similar to this:
+
+* The results will be similar to this:
+
     ```sh
     ...
     Thu Sep  3 15:25:07 UTC 2020 - PoC APP 1
@@ -337,11 +362,14 @@ For this epic, its executing is made by standalone commands (considering that th
 
 ***Validate that workload 2 is writing to specific file in the EFS***
 
-*  Execute the script as follows:
+* Execute the script as follows:
+
     ```sh
-    kubectl exec -ti poc-app2 -n poc-efs-eks-fargate -- tail -f /data/out2.txt
+    kubectl exec -ti poc-app2 -n $APP_NAMESPACE -- tail -f /data/out2.txt
     ```
-*  The results will be similar to this:
+
+* The results will be similar to this:
+
     ```sh
     ...
     Thu Sep  3 15:26:48 UTC 2020 - PoC APP 2
@@ -352,11 +380,14 @@ For this epic, its executing is made by standalone commands (considering that th
 
 ***Validate that workload 1 is able to read file written by workload 2***
 
-*  Execute the script as follows:
+* Execute the script as follows:
+
     ```sh
-    kubectl exec -ti poc-app1 -n poc-efs-eks-fargate -- tail -n 3 /data/out2.txt
+    kubectl exec -ti poc-app1 -n $APP_NAMESPACE -- tail -n 3 /data/out2.txt
     ```
-*  The results will be similar to this:
+
+* The results will be similar to this:
+
     ```sh
     Thu Sep  3 15:28:48 UTC 2020 - PoC APP 2
     Thu Sep  3 15:28:53 UTC 2020 - PoC APP 2
@@ -365,11 +396,14 @@ For this epic, its executing is made by standalone commands (considering that th
 
 ***Validate that workload 2 is able to read file written by workload 1***
 
-*  Execute the script as follows:
+* Execute the script as follows:
+
     ```sh
-    kubectl exec -ti poc-app2 -n poc-efs-eks-fargate -- tail -n 3 /data/out1.txt
+    kubectl exec -ti poc-app2 -n $APP_NAMESPACE -- tail -n 3 /data/out1.txt
     ```
-*  The results will be similar to this:
+
+* The results will be similar to this:
+
     ```sh
     ...
     Thu Sep  3 15:29:22 UTC 2020 - PoC APP 1
@@ -381,11 +415,12 @@ For this epic, its executing is made by standalone commands (considering that th
 ***Validade that after removing application components, files are kept in the EFS***
 
 This is story is accompained by a supporting script called `validate-efs-content.sh`, and does the follows:
-*  Undeploy the PoC application components
-*  Deploying the `persistent volume` requested by the validation process
-*  Deploying the `persistent volume claim` requested by the validation process
-*  Deploying the `pod` requested by the validation process
-*  Executes the `find \data` command in the deployed pod
+
+* Undeploy the PoC application components
+* Deploying the `persistent volume` requested by the validation process
+* Deploying the `persistent volume claim` requested by the validation process
+* Deploying the `pod` requested by the validation process
+* Executes the `find \data` command in the deployed pod
 
 The scripts supports parameters and environment variables as follows:
 
@@ -395,13 +430,15 @@ The scripts supports parameters and environment variables as follows:
 |File System Token|The token that was used by [AWS CLI](https://aws.amazon.com/cli/) to create an [EFS](https://aws.amazon.com/efs/).|`export FS_TOKEN=<FILE_SYSTEM_TOKEN>`|2nd parameter when calling the script.|Parameter over env variable.|No default value.|Yes, for finding [EFS](https://aws.amazon.com/efs/) File System ID, if that was not provided.|
 |Application Namespace|Namespace in which the application will be deployed in order to make usage of [EFS](https://aws.amazon.com/efs/).|`export APP_NAMESPACE=<APP_NAMESPACE>`|3rd parameter when calling the script.|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 
-<br/>Execute the script as follows:
+Execute the script as follows:
+
 ```sh
 ./scripts/epic05/validate-efs-content.sh \
     -t "$EFS_FILE_SYSTEM_ID"
 ```
 
 After deleting the PoC application components at first stage of this script, and installing the validation process components on the subsequent stages, the final result is going to be the following:
+
 ```sh
 pod/poc-app-validation created
 Waiting for pod get Running state...
@@ -422,19 +459,18 @@ As part of day-2 operation, monitor **AWS** resources for metrics that shows sta
 |Monitor application logs|As part of a day-2 operation, monitor the application logs, shipping them to CloudWatch.|Kubernetes User with granted permissions and System Administrator|
 |Monitor Amazon EKS and Kubernetes Containers with Container Insights|As part of a day-2 operation, monitor Amazon EKS and Kubernetes systems using Container Insights, which collects metrics in different dimensions. The details related to this story are listed in the [Related resources / References](https://github.com/ricardosouzamorais/efs-on-eks-fargate#references) section.|Kubernetes User with granted permissions and System Administrator|
 |Monitor Amazon EFS with CloudWatch|As part of a day-2 operation, monitor file systems using Amazon CloudWatch, which collects and processes raw data from Amazon EFS into readable, near real-time metrics. The details related to this story are listed in the [Related resources / References](https://github.com/ricardosouzamorais/efs-on-eks-fargate#references) section.|System Administrator|
-<br/>
 
 ### Clean up resources
 
 |Story|Description|Skills required|
 |---|---|---|
 |Clean up all created resources for the pattern|Desiring to finish this pattern, cleaning up resources is a best practice for cost optimization.|Kubernetes User with granted permissions and System Administrator|
-<br/>
 
-#### Supporting script
+#### Supporting script `epic06`
 
 The script `clean-up-resources.sh` is responsible for executing the storiy related to this epic:
-*  Cleaning up all created resources for the pattern
+
+* Cleaning up all created resources for the pattern
 
 The scripts supports parameters and environment variables as follows:
 
@@ -446,14 +482,16 @@ The scripts supports parameters and environment variables as follows:
 |Application Namespace|Namespace in which the application was deployed.|`export APP_NAMESPACE=<APP_NAMESPACE>`|`-n <APP_NAMESPACE>`|Parameter over env variable.|*poc-efs-eks-fargate*|No.|
 |Customer Managed Customer Master Key (CMK) Key Alias|Identifies the key alias for [Customer Managed Customer Master Key (CMK)](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#master_keys) used during the [EFS](https://aws.amazon.com/efs/) creation process.|`export KMS_ALIAS=<KMS_CMK_KEY_ALIAS>`|`-k <KMS_CMK_KEY_ALIAS>`|Parameter over env variable.|No default value.|No.|
 
-<br/>Execute the script as follows (if encryption at rest enabled and CMK Key Alias was not informed):
+ Execute the script as follows (if encryption at rest enabled and CMK Key Alias was not informed):
+
 ```sh
 ./scripts/epic06/clean-up-resources.sh \
     -c "$CLUSTER_NAME" \
     -t "$EFS_CREATION_TOKEN"
 ```
 
-<br/>Execute the script as follows (if encryption at rest enabled and CMK Key Alias was informed):
+ Execute the script as follows (if encryption at rest enabled and CMK Key Alias was informed):
+
 ```sh
 ./scripts/epic06/clean-up-resources.sh \
     -c "$CLUSTER_NAME" \
@@ -464,23 +502,26 @@ The scripts supports parameters and environment variables as follows:
 ## Related resources
 
 ### References
-*  [New – AWS Fargate for Amazon EKS now supports Amazon EFS](https://aws.amazon.com/blogs/aws/new-aws-fargate-for-amazon-eks-now-supports-amazon-efs/)
-*  [How to capture application logs when using Amazon EKS on AWS Fargate](https://aws.amazon.com/blogs/containers/how-to-capture-application-logs-when-using-amazon-eks-on-aws-fargate/)
-*  [Using Container Insights](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html)
-*  [Setting Up Container Insights on Amazon EKS and Kubernetes](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-EKS.html)
-*  [Amazon EKS and Kubernetes Container Insights](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-metrics-EKS.html)
-*  [Monitoring EFS with Amazon CloudWatch](https://docs.aws.amazon.com/efs/latest/ug/monitoring-cloudwatch.html)
+
+* [New – AWS Fargate for Amazon EKS now supports Amazon EFS](https://aws.amazon.com/blogs/aws/new-aws-fargate-for-amazon-eks-now-supports-amazon-efs/)
+* [How to capture application logs when using Amazon EKS on AWS Fargate](https://aws.amazon.com/blogs/containers/how-to-capture-application-logs-when-using-amazon-eks-on-aws-fargate/)
+* [Using Container Insights](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html)
+* [Setting Up Container Insights on Amazon EKS and Kubernetes](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-EKS.html)
+* [Amazon EKS and Kubernetes Container Insights](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-metrics-EKS.html)
+* [Monitoring EFS with Amazon CloudWatch](https://docs.aws.amazon.com/efs/latest/ug/monitoring-cloudwatch.html)
 
 ### Tutorials
-*  [Static provisioning](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/static_provisioning/README.md)
-*  [Encryption in transit](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/encryption_in_transit/README.md)
-*  [Accessing the file system from multiple pods](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/multiple_pods/README.md)
-*  [Consume EFS in StatefulSets](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/statefulset/README.md)
-*  [Mount subpath](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/volume_path/README.md)
-*  [Use Access Points](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/access_points/README.md)
+
+* [Static provisioning](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/static_provisioning/README.md)
+* [Encryption in transit](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/encryption_in_transit/README.md)
+* [Accessing the file system from multiple pods](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/multiple_pods/README.md)
+* [Consume EFS in StatefulSets](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/statefulset/README.md)
+* [Mount subpath](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/volume_path/README.md)
+* [Use Access Points](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/access_points/README.md)
 
 ### Required Tools
-*  [Installing the AWS CLI version 2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
-*  [Installing eksctl](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html)
-*  [Installing kubectl](https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html)
-*  [Installing jq](https://stedolan.github.io/jq/download/)
+
+* [Installing the AWS CLI version 2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+* [Installing eksctl](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html)
+* [Installing kubectl](https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html)
+* [Installing jq](https://stedolan.github.io/jq/download/)

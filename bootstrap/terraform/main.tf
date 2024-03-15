@@ -163,7 +163,7 @@ locals {
 #tfsec:ignore:aws-eks-no-public-cluster-access-to-cidr - This is by design
 #tfsec:ignore:aws-ec2-no-public-egress-sgr - This is by design
 module "eks" {
-#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
+  #checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 19.16"
 
@@ -225,7 +225,7 @@ module "eks" {
 ################################################################################
 
 module "eks_blueprints_addons" {
-#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
+  #checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "aws-ia/eks-blueprints-addons/aws"
   version = "~> 1.0"
 
@@ -235,6 +235,10 @@ module "eks_blueprints_addons" {
   oidc_provider_arn = module.eks.oidc_provider_arn
 
   enable_aws_efs_csi_driver = true
+  aws_efs_csi_driver = {
+    name  = "controller.enable"
+    value = false
+  }
 
   tags = local.tags
 }
@@ -271,7 +275,7 @@ resource "kubernetes_storage_class_v1" "efs" {
 #tfsec:ignore:aws-ec2-no-public-ingress-acl - False Positive Inbound ACLs are enabled, line 302-308
 #tfsec:ignore:aws-ec2-require-vpc-flow-logs-for-all-vpcs - False Positive Flow Logs are enabled - line 289-294
 module "vpc" {
-#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
+  #checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
 
@@ -291,16 +295,9 @@ module "vpc" {
   private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
   public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
 
-  public_dedicated_network_acl = true
-  public_inbound_acl_rules     = concat(local.network_acls["default_inbound"], local.network_acls["public_inbound"])
-  public_outbound_acl_rules    = concat(local.network_acls["default_outbound"], local.network_acls["public_outbound"])
 
-  private_dedicated_network_acl = true
-  private_inbound_acl_rules     = local.network_acls["default_inbound"]
-  private_outbound_acl_rules    = local.network_acls["default_outbound"]
 
   enable_nat_gateway = true
-  single_nat_gateway = true
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
@@ -314,7 +311,7 @@ module "vpc" {
 }
 
 module "efs" {
-#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
+  #checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/efs/aws"
   version = "~> 1.1"
 
@@ -339,7 +336,7 @@ module "efs" {
 }
 
 module "ebs_kms_key" {
-#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
+  #checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/kms/aws"
   version = "~> 1.5"
 
@@ -361,7 +358,7 @@ module "ebs_kms_key" {
 }
 
 module "ebs_csi_driver_irsa" {
-#checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
+  #checkov:skip=CKV_TF_1: The modules already have a pinned version constraint
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.20"
 
